@@ -127,16 +127,16 @@ fn parse_map_file(file_path: &str) {
                     || line.starts_with("START GROUP")
                     || line.starts_with("END GROUP"))
                 {
-                    let temp_line;
-                    if line.starts_with("                ")  {
-                        temp_line = if let Some(last) = discarded_sections.pop() {
-                            format!("{}{}", last, line) // No need for line.to_string()
-                        } else {
-                            line.clone() // Use clone if you need a new String instance
-                        };
-                    } else {
-                        linker_script_memory_map_buffer.push(line.trim().to_string());
-                    }
+//                    let temp_line;
+//                    if line.starts_with("                ")  {
+//                        temp_line = if let Some(last) = discarded_sections.pop() {
+//                            format!("{}{}", last, line) // No need for line.to_string()
+//                        } else {
+//                            line.clone() // Use clone if you need a new String instance
+//                        };
+//                    } else {
+//                        linker_script_memory_map_buffer.push(line.trim().to_string());
+//                    }
                     
                     linker_script_memory_map.push(line.trim().to_string());
                 }
