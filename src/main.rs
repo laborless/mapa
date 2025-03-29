@@ -6,7 +6,7 @@ use std::fs::OpenOptions;
 use std::io::Write;
 
 use serde::{Deserialize, Serialize};
-use serde_json::Result;
+// use serde_json::Result;
 
 #[derive(Serialize, Deserialize)]
 struct SubSection {
@@ -157,8 +157,9 @@ fn parse_map_file(file_path: &str) {
                 if !(line.trim().is_empty()
                     || line.starts_with("LOAD")
                     || line.starts_with("START GROUP")
-                    || line.starts_with("END GROUP"))
-                {
+                    || line.starts_with("END GROUP")
+                    || line.starts_with(" *(")
+                ) {
                     if !line.starts_with(' ') {
                         let mut memory_map = MemoryMap {
                             section: String::new(),
@@ -241,7 +242,7 @@ fn parse_map_file(file_path: &str) {
                             }
                         }
                     }
-                    else if !line.starts_with(" *(") {
+                    else {
                         let split_line = line.split_whitespace().collect::<Vec<_>>();
                         if split_line.len() == 1 {
                             if let Some(last_memory_map) = linker_script_memory_map.last_mut() {
@@ -290,19 +291,6 @@ fn parse_map_file(file_path: &str) {
                             }
                         }
                     }
-
-//                    let temp_line;
-//                    if line.starts_with("                ")  {
-//                        temp_line = if let Some(last) = discarded_sections.pop() {
-//                            format!("{}{}", last, line) // No need for line.to_string()
-//                        } else {
-//                            line.clone() // Use clone if you need a new String instance
-//                        };
-//                    } else {
-//                        linker_script_memory_map_buffer.push(line.trim().to_string());
-//                    }
-                    
-                    // linker_script_memory_map.push(line.trim().to_string());
                 }
             }
             ParserState::None => {
@@ -389,7 +377,6 @@ fn parse_map_file(file_path: &str) {
 
     println!("\nLinker Script and Memory Map:");
     
-
     // Convert linker_script_memory_map to JSON and print it
     match serde_json::to_string(&linker_script_memory_map) {
         Ok(json) => println!("{}", json),
