@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 struct SubSection {
-    name: String,
+    name: Vec<String>,
     address: String,
     length: String,
     object: String,
@@ -80,7 +80,7 @@ fn parse_map_file(file_path: &str) {
     let mut archive_members = Vec::new();
     let mut discarded_sections = Vec::new();
     let mut memory_configuration = Vec::new();
-    let mut linker_script_memory_map = Vec::new();
+    let mut linker_script_memory_map: Vec<MemoryMap> = Vec::new();
     // let mut memory_map: MemoryMap = MemoryMap {
     //     section: String::new(),
     //     section_address: String::new(),
@@ -158,139 +158,178 @@ fn parse_map_file(file_path: &str) {
                     || line.starts_with("LOAD")
                     || line.starts_with("START GROUP")
                     || line.starts_with("END GROUP")
-                    || line.starts_with(" *(")
-                ) {
-                    if !line.starts_with(' ') {
-                        let mut memory_map = MemoryMap {
-                            section: String::new(),
-                            section_address: String::new(),
-                            section_length: String::new(),                            
-                            sub_section: Vec::new()
-                        };
+                    // || line.starts_with(" *(")
+                    || line.starts_with("OUTPUT(")
+                 ) {
+                    
+                    let mut section = String::new();
+                    let mut sub_section = String::new();
+                    let mut address = String::new();
+                    let mut length = String::new();
+                    let mut object = String::new();
 
-                        let split_line = line.split_whitespace().collect::<Vec<_>>();
-                        // let split_line = line.split_whitespace();
-                        // println!("1split_line: {:?}", split_line);
-                        if split_line.len() == 1 {
-                            memory_map.section = line.trim().to_string();
+                    if line.len() < "                ".len() {
+                        // Only Short section or subsection name
+                        if !line.starts_with(" ") {
+                            // section name
+                            section = line.split_whitespace().next().unwrap_or("").to_string();
+                        } else {
+                            // subsection name
+                            sub_section = line.split_whitespace().next().unwrap_or("").to_string();
+                        }
+                    } else {
+                        if line["                ".len()..].starts_with("0x") {
+                            // Address exists
+                            let mut split_line = line.split_whitespace();
+                            if line.chars().nth(0) != Some(' ') || line.chars().nth(1) != Some(' ') {
+                                if !line.starts_with(" ") {
+                                    // section name
+                                    section = split_line.next().unwrap_or("").to_string();
+                                } else {
+                                    // subsection name
+                                    sub_section = split_line.next().unwrap_or("").to_string();
+                                }
+                            }
 
-                            linker_script_memory_map.push(memory_map);
+                            address = split_line.next().unwrap_or("").to_string();
+
+                            if line.len() < "*fill*         0x000002a6        0x2 ".len() {
+                                if line.chars().nth("*fill*         0x000002a6        0x2 ".len() - 1) != Some(' ') {
+                                    // Lenth exist
+                                    length = split_line.next().unwrap_or("").to_string();
+                                }
+                            } else {
+                                if line.chars().nth("*fill*         0x000002a6        0x2 ".len() - 1) != Some(' ') {
+                                    // Lenth exist
+                                    length = split_line.next().unwrap_or("").to_string();
+                                }
+                                if !line["*fill*         0x000002a6        0x2 ".len()..].trim().is_empty() {
+                                    // object or demangled exist
+                                    object = split_line.collect::<Vec<_>>().join(" ");
+                                }
+                            }
+                        } else {
+                            // Only Long section or subsection name
+                            if !line.starts_with(" ") {
+                                // section name
+                                section = line.split_whitespace().next().unwrap_or("").to_string();
+                            } else {
+                                // subsection name
+                                sub_section = line.split_whitespace().next().unwrap_or("").to_string();
+                            }                         
+                        }
+                    }
+                    if !section.is_empty() {
+                        let memory_map  ;
+                        if !address.is_empty() && !length.is_empty() {
+                            memory_map = MemoryMap {
+                                section: section.clone(),
+                                section_address: address.clone(),
+                                section_length: length.clone(),                            
+                                sub_section: Vec::new()
+                            };
+                            memory_map_parser_state = 2;
+                        } else {
+                            memory_map = MemoryMap {
+                                section: section.clone(),
+                                section_address: String::new(),
+                                section_length: String::new(),                            
+                                sub_section: Vec::new()
+                            };                            
                             memory_map_parser_state = 1;
                         }
-                        else if split_line.len() == 3 {
-                            memory_map.section = split_line[0].to_string();
-                            memory_map.section_address = split_line[1].to_string();
-                            memory_map.section_length = split_line[2].to_string();
+                        linker_script_memory_map.push(memory_map);
+                        
+                    } else if !sub_section.is_empty() {
+                        if memory_map_parser_state == 2 {
 
-                            linker_script_memory_map.push(memory_map);
-                            memory_map_parser_state = 2;
-                        }
-                    }
-                    else if line.starts_with("                ") {
-                        let split_line = line.split_whitespace().collect::<Vec<_>>();
-
-                        if memory_map_parser_state == 1 {
-                            if split_line.len() == 2 {
-                                if let Some(last_memory_map) = linker_script_memory_map.last_mut() {
-                                    last_memory_map.section_address = split_line[0].to_string();
-                                    last_memory_map.section_length = split_line[1].to_string();
+                            if let Some(last_map) = linker_script_memory_map.last_mut() {
+                                if last_map.sub_section.is_empty() {
+                                    let new_sub_section = SubSection {
+                                        name: vec![sub_section.clone()],
+                                        address: String::new(),
+                                        length: String::new(),
+                                        object: String::new(),
+                                        demangled: Vec::new(),
+                                    };
+                                    last_map.sub_section.push(new_sub_section);
                                 } else {
-                                    eprintln!("Error: No memory map found to modify.");
+                                    if let Some(last_sub_section) = last_map.sub_section.last_mut() {
+                                        last_sub_section.name.push(sub_section.clone());
+                                    }
                                 }
-                                memory_map_parser_state = 2;
-                                // println!("1split_line: {:?}", split_line);
                             }
-                        } else if memory_map_parser_state == 2 {
-                            if split_line.len() == 2 {
-                                if let Some(last_memory_map) = linker_script_memory_map.last_mut() {
-                                    if let Some(last_sub_section) = last_memory_map.sub_section.last_mut() {
-                                        last_sub_section.address = split_line[0].to_string();
-                                        last_sub_section.length = split_line[1].to_string();
-                                    } else {
-                                        eprintln!("Error: No subsection found to modify.");
+
+                            if !address.is_empty() && !length.is_empty() && !object.is_empty() {
+                                if let Some(last_map) = linker_script_memory_map.last_mut() {
+                                    if let Some(last_sub_section) = last_map.sub_section.last_mut() {
+                                        last_sub_section.address = address.clone();
+                                        last_sub_section.length = length.clone();
+                                        last_sub_section.object = object.clone();
                                     }
-                                } else {
-                                    eprintln!("Error: No memory map found to modify.");
-                                }
-                                // println!("2split_line: {:?}", split_line);
-                            } else if split_line.len() >= 3 {
-                                if let Some(last_memory_map) = linker_script_memory_map.last_mut() {
-                                    if let Some(last_sub_section) = last_memory_map.sub_section.last_mut() {
-                                        last_sub_section.address = split_line[0].to_string();
-                                        last_sub_section.length = split_line[1].to_string();
-                                        last_sub_section.object = split_line[2..].join(" ");
-                                    } else {
-                                        eprintln!("Error: No subsection found to modify.");
-                                    }
-                                } else {
-                                    eprintln!("Error: No memory map found to modify.");
                                 }                                
-                                // println!("2split_line: {:?}", split_line);
+                                memory_map_parser_state = 3;
                             }
+
                         } else if memory_map_parser_state == 3 {
-                            if split_line.len() >= 2 {
-                                if let Some(last_memory_map) = linker_script_memory_map.last_mut() {
-                                    if let Some(last_sub_section) = last_memory_map.sub_section.last_mut() {
-                                        last_sub_section.demangled.push(split_line[1..].join(" "));
-                                    } else {
-                                        eprintln!("Error: No subsection found to modify.");
-                                    }
-                                } else {
-                                    eprintln!("Error: No memory map found to modify.");
-                                }
-                                // println!("3split_line: {:?}", split_line);
-                            }
-                        }
-                    }
-                    else {
-                        let split_line = line.split_whitespace().collect::<Vec<_>>();
-                        if split_line.len() == 1 {
-                            if let Some(last_memory_map) = linker_script_memory_map.last_mut() {
-                                let new_sub_section = SubSection {
-                                    name: split_line[0].to_string(),
+                            if let Some(last_map) = linker_script_memory_map.last_mut() {
+                                let mut new_sub_section = SubSection {
+                                    name: vec![sub_section.clone()],
                                     address: String::new(),
                                     length: String::new(),
                                     object: String::new(),
-                                    demangled: vec![],
+                                    demangled: Vec::new(),
                                 };
-                                last_memory_map.sub_section.push(new_sub_section);
-                                memory_map_parser_state = 2;
-                                // println!("2split_line: {:?}", split_line);
-                            } else {
-                                eprintln!("Error: No memory map found to add subsection.");
+
+                                if address.is_empty() && length.is_empty() {
+                                    memory_map_parser_state = 2
+                                } else if !address.is_empty() && !length.is_empty() {
+                                    new_sub_section.address = address.clone();
+                                    new_sub_section.length = length.clone();
+                                    if !object.is_empty() {
+                                        new_sub_section.object = object.clone();
+                                    }
+                                    memory_map_parser_state = 3
+                                }
+
+                                last_map.sub_section.push(new_sub_section);
                             }
-                        } else if split_line.len() == 3 {
-                            if let Some(last_memory_map) = linker_script_memory_map.last_mut() {
-                                let new_sub_section = SubSection {
-                                    name: split_line[0].to_string(),
-                                    address: split_line[1].to_string(),
-                                    length: split_line[2].to_string(),
-                                    object: String::new(),
-                                    demangled: vec![],
-                                };
-                                last_memory_map.sub_section.push(new_sub_section);
-                                memory_map_parser_state = 3;
-                                // println!("2split_line: {:?}", split_line);
-                            } else {
-                                eprintln!("Error: No memory map found to add subsection.");
+
+                        }
+                    } else {
+                        if memory_map_parser_state == 1 {
+                            if !address.is_empty() && !length.is_empty() {
+                                if let Some(last_map) = linker_script_memory_map.last_mut() {
+                                    last_map.section_address = address.clone();
+                                    last_map.section_length = length.clone();
+                                    memory_map_parser_state = 2;
+                                }
                             }
-                        } else if split_line.len() >= 4 {
-                            if let Some(last_memory_map) = linker_script_memory_map.last_mut() {
-                                let new_sub_section = SubSection {
-                                    name: split_line[1].to_string(),
-                                    address: split_line[1].to_string(),
-                                    length: split_line[2].to_string(),
-                                    object: split_line[3..].join(" "),
-                                    demangled: vec![],
-                                };
-                                last_memory_map.sub_section.push(new_sub_section);
-                                memory_map_parser_state = 3;
-                                // println!("2split_line: {:?}", split_line);
-                            } else {
-                                eprintln!("Error: No memory map found to add subsection.");
+                        } else if memory_map_parser_state == 2 {
+                            if !address.is_empty() && !length.is_empty() && !object.is_empty() {
+                                if let Some(last_map) = linker_script_memory_map.last_mut() {
+                                    if let Some(last_sub_section) = last_map.sub_section.last_mut() {
+                                        last_sub_section.address = address.clone();
+                                        last_sub_section.length = length.clone();
+                                        last_sub_section.object = object.clone();
+    
+                                        memory_map_parser_state = 3;
+                                    }
+                                }
+                            }
+                        } else if memory_map_parser_state == 3 {
+                            if !address.is_empty() && length.is_empty() && !object.is_empty() {
+                                if let Some(last_map) = linker_script_memory_map.last_mut() {
+                                    if let Some(last_sub_section) = last_map.sub_section.last_mut() {
+                                        last_sub_section.demangled.push(object.clone());
+                                    }
+                                }
                             }
                         }
+
                     }
+
+                    // println!("{} {} {} {} {}", section, sub_section, address, length, object);
                 }
             }
             ParserState::None => {
@@ -375,17 +414,81 @@ fn parse_map_file(file_path: &str) {
         println!("Memory configuration saved to {}", output_file_path);
     }
 
-    println!("\nLinker Script and Memory Map:");
+    // println!("\nLinker Script and Memory Map:");
     
     // Convert linker_script_memory_map to JSON and print it
-    match serde_json::to_string(&linker_script_memory_map) {
-        Ok(json) => println!("{}", json),
-        Err(e) => eprintln!("Error converting linker_script_memory_map to JSON: {}", e),
-    }
+    // match serde_json::to_string(&linker_script_memory_map) {
+    //     // Ok(json) => println!("{}", json),
+    //     Ok(json) => {
+    //         let output_file_path = "linker_script_memory_map.json";
+    //         let mut file = match OpenOptions::new()
+    //         .write(true)
+    //         .create(true)
+    //         .truncate(true)
+    //         .open(output_file_path)
+    //         {
+    //         Ok(file) => file,
+    //         Err(e) => {
+    //             eprintln!("Error creating file {}: {}", output_file_path, e);
+    //             return;
+    //         }
+    //         };
+
+    //         if let Err(e) = writeln!(file, "{}", json) {
+    //         eprintln!("Error writing to file {}: {}", output_file_path, e);
+    //         return;
+    //         }
+
+    //         println!("Linker Script and Memory Map saved to {}", output_file_path);
+    //     },
+    //     Err(e) => eprintln!("Error converting linker_script_memory_map to JSON: {}", e),
+    // }
+
     // for map in linker_script_memory_map {
     //     println!("--- {} {} {} ---", map.section, map.section_address, map.section_length);
     //     for sub_section in map.sub_section {
     //         println!("  {} {} {} {} {}", sub_section.name, sub_section.address, sub_section.length, sub_section.object, sub_section.demangled.join(","));
     //     }
-    // }
+    if !linker_script_memory_map.is_empty() {
+        println!("\nLinker Script and Memory Map:");
+        let output_file_path = "memory_map.tsv";
+        let mut file = match OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(output_file_path)
+        {
+            Ok(file) => file,
+            Err(e) => {
+                eprintln!("Error creating file {}: {}", output_file_path, e);
+                return;
+            }
+        };
+
+        for map in &linker_script_memory_map {
+            let section = &map.section;
+            // let section_address = &map.section_address;
+            // let section_length = &map.section_length;
+
+            for sub in &map.sub_section {
+                let sub_name = sub.name.join(" ");
+                let sub_address = &sub.address;
+                let sub_length = &sub.length;
+                let sub_object = &sub.object;
+                let sub_demangled = sub.demangled.join(" ");
+
+                if let Err(e) = writeln!(
+                    file,
+                    // "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                    "{}\t{}\t{}\t{}\t{}\t{}",
+                    section, /*section_address, section_length,*/
+                    sub_name, sub_address, sub_length, sub_object, sub_demangled
+                ) {
+                    eprintln!("Error writing to file {}: {}", output_file_path, e);
+                    return;
+                }
+            }
+        }
+        println!("Linker Script and Memory Map saved to {}", output_file_path);
+    }
 }
