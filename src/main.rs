@@ -159,6 +159,7 @@ fn parse_map_file(file_path: &str) {
                     || line.starts_with("START GROUP")
                     || line.starts_with("END GROUP")
                     // || line.starts_with(" *(")
+                    || line.starts_with("                                 0x")
                     || line.starts_with("OUTPUT(")
                  ) {
                     
