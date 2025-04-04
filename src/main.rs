@@ -276,7 +276,7 @@ fn parse_map_file(file_path: &str) {
                                         if subsection_overlap {
                                             last_sub_section.object = format!("{} {}", last_sub_section.object, object);
                                         }
-                                        last_sub_section.object = object.clone();
+                                        // last_sub_section.object = object.clone();
                                     }
                                 }                                
                                 memory_map_parser_state = 3;
@@ -284,28 +284,39 @@ fn parse_map_file(file_path: &str) {
 
                         } else if memory_map_parser_state == 3 {
                             let mut subsection_overlap = false;
-                            //TODO: as status == 2
-                            if let Some(last_map) = linker_script_memory_map.last_mut() {
-                                let mut new_sub_section = SubSection {
-                                    name: vec![sub_section.clone()],
-                                    address: String::new(),
-                                    length: String::new(),
-                                    object: String::new(),
-                                    demangled: Vec::new(),
-                                };
 
-                                if address.is_empty() && length.is_empty() {
-                                    memory_map_parser_state = 2
-                                } else if !address.is_empty() && !length.is_empty() {
-                                    new_sub_section.address = address.clone();
-                                    new_sub_section.length = length.clone();
-                                    if !object.is_empty() {
-                                        new_sub_section.object = object.clone();
+                            if let Some(last_map) = linker_script_memory_map.last_mut() {
+                                if !last_map.sub_section.is_empty() {
+                                    if let Some(last_sub_section) = last_map.sub_section.last_mut() {
+                                        if last_sub_section.name.contains(&sub_section) {
+                                            subsection_overlap = true;
+                                            last_sub_section.object = format!("{} {}", last_sub_section.object, object);
+                                        }
                                     }
-                                    memory_map_parser_state = 3
                                 }
 
-                                last_map.sub_section.push(new_sub_section);
+                                if !subsection_overlap {
+                                    let mut new_sub_section = SubSection {
+                                        name: vec![sub_section.clone()],
+                                        address: String::new(),
+                                        length: String::new(),
+                                        object: String::new(),
+                                        demangled: Vec::new(),
+                                    };
+    
+                                    if address.is_empty() && length.is_empty() {
+                                        memory_map_parser_state = 2
+                                    } else if !address.is_empty() && !length.is_empty() {
+                                        new_sub_section.address = address.clone();
+                                        new_sub_section.length = length.clone();
+                                        if !object.is_empty() {
+                                            new_sub_section.object = object.clone();
+                                        }
+                                        memory_map_parser_state = 3
+                                    }
+    
+                                    last_map.sub_section.push(new_sub_section);
+                                }
                             }
 
                         }
