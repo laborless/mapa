@@ -179,7 +179,8 @@ fn parse_map_file(file_path: &str) {
                             sub_section = line.split_whitespace().next().unwrap_or("").to_string();
                         }
                     } else {
-                        if line["                ".len()..].starts_with("0x") {
+                        if line["                ".len()..].starts_with("0x") 
+                        || line["                ".len()..].starts_with("[!") {
                             // Address exists
                             let mut split_line = line.split_whitespace();
                             if line.chars().nth(0) != Some(' ') || line.chars().nth(1) != Some(' ') {
@@ -243,6 +244,7 @@ fn parse_map_file(file_path: &str) {
                         
                     } else if !sub_section.is_empty() {
                         if memory_map_parser_state == 2 {
+                            let mut subsection_overlap = false;
 
                             if let Some(last_map) = linker_script_memory_map.last_mut() {
                                 if last_map.sub_section.is_empty() {
@@ -256,7 +258,12 @@ fn parse_map_file(file_path: &str) {
                                     last_map.sub_section.push(new_sub_section);
                                 } else {
                                     if let Some(last_sub_section) = last_map.sub_section.last_mut() {
-                                        last_sub_section.name.push(sub_section.clone());
+                                        if !last_sub_section.name.contains(&sub_section) {
+                                            last_sub_section.name.push(sub_section.clone());
+                                        } else {
+                                            subsection_overlap = true;
+                                        }
+                                        // last_sub_section.name.push(sub_section.clone());
                                     }
                                 }
                             }
@@ -266,6 +273,9 @@ fn parse_map_file(file_path: &str) {
                                     if let Some(last_sub_section) = last_map.sub_section.last_mut() {
                                         last_sub_section.address = address.clone();
                                         last_sub_section.length = length.clone();
+                                        if subsection_overlap {
+                                            last_sub_section.object = format!("{} {}", last_sub_section.object, object);
+                                        }
                                         last_sub_section.object = object.clone();
                                     }
                                 }                                
@@ -273,6 +283,8 @@ fn parse_map_file(file_path: &str) {
                             }
 
                         } else if memory_map_parser_state == 3 {
+                            let mut subsection_overlap = false;
+                            //TODO: as status == 2
                             if let Some(last_map) = linker_script_memory_map.last_mut() {
                                 let mut new_sub_section = SubSection {
                                     name: vec![sub_section.clone()],
