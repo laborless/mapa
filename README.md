@@ -70,6 +70,31 @@ To run the application in debug mode:
 cargo run -- test.map
 ```
 
+## Cross-Compile
+### Download targets
+```sh
+rustup target add x86_64-unknown-linux-gnu
+rustup target add x86_64-pc-windows-gnu
+rustup target add aarch64-unknown-linux-gnu
+```
+### Download Cross-compilers
+#### Ubuntu/Debian
+```sh
+sudo apt install gcc-mingw-w64
+sudo apt install gcc-aarch64-linux-gnu
+```
+#### Fedora
+```sh
+sudo dnf install mingw64-gcc
+sudo dnf install gcc-aarch64-linux-gnu
+```
+### Build for Each Target
+```sh
+cargo build --target x86_64-unknown-linux-gnu --release
+cargo build --target x86_64-pc-windows-gnu --release
+cargo build --target aarch64-unknown-linux-gnu --release
+```
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
