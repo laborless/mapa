@@ -158,7 +158,8 @@ fn parse_map_file(file_path: &str) {
                     || line.starts_with("LOAD")
                     || line.starts_with("START GROUP")
                     || line.starts_with("END GROUP")
-                    || (line.starts_with(" *(") && line.ends_with(")"))
+                    // || (line.starts_with(" *(") && line.ends_with(")"))
+                    || line.ends_with("*)")
                     || line.starts_with("                                 0x")
                     || line.starts_with("OUTPUT(")
                  ) {
@@ -258,10 +259,11 @@ fn parse_map_file(file_path: &str) {
                                     last_map.sub_section.push(new_sub_section);
                                 } else {
                                     if let Some(last_sub_section) = last_map.sub_section.last_mut() {
-                                        if !last_sub_section.name.contains(&sub_section) {
-                                            last_sub_section.name.push(sub_section.clone());
-                                        } else {
+                                        if last_sub_section.name.contains(&sub_section) 
+                                        && (!address.is_empty() && last_sub_section.address == address) {
                                             subsection_overlap = true;
+                                        } else {
+                                            last_sub_section.name.push(sub_section.clone());
                                         }
                                         // last_sub_section.name.push(sub_section.clone());
                                     }
@@ -276,6 +278,9 @@ fn parse_map_file(file_path: &str) {
                                         if subsection_overlap {
                                             last_sub_section.object = format!("{} {}", last_sub_section.object, object);
                                         }
+                                        else {
+                                            last_sub_section.object = object.clone();
+                                        }
                                         // last_sub_section.object = object.clone();
                                     }
                                 }                                
@@ -288,7 +293,8 @@ fn parse_map_file(file_path: &str) {
                             if let Some(last_map) = linker_script_memory_map.last_mut() {
                                 if !last_map.sub_section.is_empty() {
                                     if let Some(last_sub_section) = last_map.sub_section.last_mut() {
-                                        if last_sub_section.name.contains(&sub_section) {
+                                        if last_sub_section.name.contains(&sub_section) 
+                                        && (!address.is_empty() && last_sub_section.address == address) {
                                             subsection_overlap = true;
                                             last_sub_section.object = format!("{} {}", last_sub_section.object, object);
                                         }
