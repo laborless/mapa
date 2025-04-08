@@ -100,14 +100,14 @@ rustup target add aarch64-unknown-linux-gnu
 
 ```sh
 sudo apt install gcc-mingw-w64
-sudo apt install gcc-aarch64-linux-gnu
+sudo apt install gcc-aarch64-linux-gnu libc6-dev-arm64-cross
 ```
 
 #### Fedora
 
 ```sh
 sudo dnf install mingw64-gcc
-sudo dnf install gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+sudo dnf install gcc-aarch64-linux-gnu glibc-devel.aarch64
 ```
 
 ### Build for Each Target
@@ -116,6 +116,31 @@ sudo dnf install gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
 cargo build --target x86_64-unknown-linux-gnu --release
 cargo build --target x86_64-pc-windows-gnu --release
 cargo build --target aarch64-unknown-linux-gnu --release
+```
+
+### Build with cross
+
+#### Requirement
+ - Rust
+ - Docker or Podman
+ - Cross
+
+```sh
+cargo install cross
+```
+#### Build
+```sh
+cargo build --target x86_64-unknown-linux-gnu --release
+cargo build --target x86_64-pc-windows-gnu --release
+cross build --target aarch64-unknown-linux-gnu --release
+```
+
+
+also can run with cross
+
+```sh
+
+cross run --target aarch64-unknown-linux-gnu --release
 ```
 
 ## License
