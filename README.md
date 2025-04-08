@@ -17,6 +17,10 @@
   - Memory configuration: `memory_configuration.tsv`
 - Output linker script memory map in JSON format.
 
+### Pre-Built Binary
+
+[Pre-Built Binary Releases](https://github.com/laborless/mapa/releases)
+
 ## Installation
 
 1. Ensure you have [Rust](https://www.rust-lang.org/) installed.
@@ -30,8 +34,15 @@
 3. Build the application:
 
    ```sh
-   cargo build --release
+   cargo build
    ```
+
+4. Run the application:
+
+   ```sh
+   cargo run -- <MAP_FILE_PATH>
+   ```
+
 
 ## Usage
 
