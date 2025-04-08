@@ -33,7 +33,7 @@ struct MemoryMap {
     sub_section: Vec<SubSection>,
 }
 
-/// Simple program to analyze a map file
+/// Simple program to analyze a gnu map file
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
